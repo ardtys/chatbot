@@ -1,6 +1,19 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
+import httpx
+
+
+def get_embedding(text):
+    api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+    headers = {}
+    hf_token = os.getenv("HF_API_KEY")
+    if hf_token:
+        headers["Authorization"] = f"Bearer {hf_token}"
+
+    response = httpx.post(api_url, headers=headers, json={"inputs": text}, timeout=30)
+    response.raise_for_status()
+    return response.json()
 
 
 class handler(BaseHTTPRequestHandler):
@@ -27,13 +40,6 @@ class handler(BaseHTTPRequestHandler):
 
             from upstash_vector import Index
             from langchain_groq import ChatGroq
-            from langchain_huggingface import HuggingFaceEmbeddings
-
-            embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={'normalize_embeddings': True}
-            )
 
             index = Index(
                 url=os.getenv("UPSTASH_VECTOR_REST_URL"),
@@ -47,7 +53,7 @@ class handler(BaseHTTPRequestHandler):
                 max_tokens=1000,
             )
 
-            question_embedding = embeddings.embed_query(question)
+            question_embedding = get_embedding(question)
 
             top_k = int(os.getenv("TOP_K", "5"))
             results = index.query(
@@ -79,7 +85,7 @@ class handler(BaseHTTPRequestHandler):
 
 ATURAN FORMAT JAWABAN:
 1. Gunakan format yang rapi dan mudah dibaca
-2. Gunakan bullet points (•) untuk daftar item
+2. Gunakan bullet points untuk daftar item
 3. Gunakan penomoran (1, 2, 3) untuk langkah-langkah atau prosedur
 4. Pisahkan kategori/bagian dengan baris kosong
 5. Tebalkan informasi penting dengan **teks**

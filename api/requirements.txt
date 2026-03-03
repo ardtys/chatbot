@@ -1,11 +1,4 @@
-fastapi==0.115.6
-langchain==0.3.14
-langchain-community==0.3.14
-langchain-core>=0.3.33
-langchain-groq==0.2.4
-langchain-huggingface==0.1.2
-upstash-vector==0.6.0
-pypdf==5.1.0
 httpx==0.28.1
-pydantic==2.10.5
-python-multipart==0.0.20
+upstash-vector==0.6.0
+langchain-groq==0.2.4
+langchain-core>=0.3.33

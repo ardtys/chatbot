@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del \"C:\\\\Users\\\\Daffa\\\\OneDrive\\\\Desktop\\\\rag-system\\\\api\\\\_utils.py\")"
+    ]
+  }
+}
