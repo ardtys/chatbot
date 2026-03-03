@@ -1,0 +1,80 @@
+version: "3.9"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rag-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
+  ollama-pull:
+    image: curlimages/curl:latest
+    container_name: rag-ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        echo "Pulling embedding model: nomic-embed-text..."
+        curl -sf http://ollama:11434/api/pull -d '{"name":"nomic-embed-text"}' | tail -1
+        echo ""
+        echo "Pulling chat model: mistral..."
+        curl -sf http://ollama:11434/api/pull -d '{"name":"mistral"}' | tail -1
+        echo ""
+        echo "All models ready!"
+
+  backend:
+    build: ./backend
+    container_name: rag-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DOCS_DIR=/app/docs
+      - CHROMA_DIR=/app/chroma_db
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - EMBED_MODEL=nomic-embed-text
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - CHAT_MODEL=${CHAT_MODEL:-llama-3.3-70b-versatile}
+      - CHUNK_SIZE=800
+      - CHUNK_OVERLAP=100
+      - TOP_K=5
+    volumes:
+      - ./docs:/app/docs:ro
+      - chroma_data:/app/chroma_db
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build: ./frontend
+    container_name: rag-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  chroma_data:
