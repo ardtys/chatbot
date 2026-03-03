@@ -11,11 +11,5 @@
       "runtime": "python3.11",
       "maxDuration": 60
     }
-  },
-  "env": {
-    "GROQ_API_KEY": "@groq_api_key",
-    "UPSTASH_VECTOR_REST_URL": "@upstash_vector_rest_url",
-    "UPSTASH_VECTOR_REST_TOKEN": "@upstash_vector_rest_token",
-    "HF_API_KEY": "@hf_api_key"
   }
 }
