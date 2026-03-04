@@ -6,15 +6,21 @@ from groq import Groq
 
 
 def get_embedding(text):
-    api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
-    headers = {}
+    api_url = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+    headers = {"Content-Type": "application/json"}
     hf_token = os.getenv("HF_API_KEY")
     if hf_token:
         headers["Authorization"] = f"Bearer {hf_token}"
 
     response = httpx.post(api_url, headers=headers, json={"inputs": text}, timeout=30)
     response.raise_for_status()
-    return response.json()
+    result = response.json()
+
+    if isinstance(result, list) and len(result) > 0:
+        if isinstance(result[0], list):
+            return result[0]
+        return result
+    return result
 
 
 class handler(BaseHTTPRequestHandler):
