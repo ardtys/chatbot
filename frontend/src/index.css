@@ -18,6 +18,20 @@ body {
   color: #171717;
   background: #fff;
   letter-spacing: -0.01em;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
 }
 
 ::selection {
@@ -57,9 +71,15 @@ body {
 }
 
 .prose-answer {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.7;
   color: #404040;
+}
+
+@media (min-width: 640px) {
+  .prose-answer {
+    font-size: 15px;
+  }
 }
 
 .prose-answer p {

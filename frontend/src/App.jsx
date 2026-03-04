@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Send, FileText, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { Send, FileText, ChevronRight, Plus, Trash2, Menu, X } from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -52,8 +52,8 @@ function Message({ data, isLast }) {
   if (isUser) {
     return (
       <div className={`flex justify-end ${isLast ? 'animate-in' : ''}`}>
-        <div className="max-w-[85%] bg-neutral-900 text-white px-4 py-3 rounded-2xl rounded-br-sm">
-          <p className="text-[15px] leading-relaxed">{data.content}</p>
+        <div className="max-w-[90%] sm:max-w-[85%] bg-neutral-900 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl rounded-br-sm">
+          <p className="text-[14px] sm:text-[15px] leading-relaxed">{data.content}</p>
         </div>
       </div>
     )
@@ -86,6 +86,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [health, setHealth] = useState(null)
   const [history, setHistory] = useState([])
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const scrollRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -163,20 +164,40 @@ export default function App() {
 
   return (
     <div className="h-screen flex bg-white">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 bg-neutral-950 flex flex-col">
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-neutral-950 flex flex-col transform transition-transform duration-300 ease-in-out
+        lg:static lg:w-64 lg:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         <div className="p-4">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-lg font-bold text-neutral-900">B</span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
+                <span className="text-lg font-bold text-neutral-900">B</span>
+              </div>
+              <div>
+                <div className="text-white font-semibold text-[15px]">Basis</div>
+                <div className="text-neutral-500 text-[11px]">Company Assistant</div>
+              </div>
             </div>
-            <div>
-              <div className="text-white font-semibold text-[15px]">Basis</div>
-              <div className="text-neutral-500 text-[11px]">Company Assistant</div>
-            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 text-neutral-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
           </div>
           <button
-            onClick={newChat}
+            onClick={() => { newChat(); setSidebarOpen(false) }}
             className="w-full flex items-center gap-2 px-3 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white text-[13px] font-medium rounded-lg transition-colors"
           >
             <Plus size={16} />
@@ -191,7 +212,7 @@ export default function App() {
               className={`group flex items-center gap-2 px-3 py-2.5 mb-1 rounded-lg cursor-pointer transition-colors ${
                 activeChat === chat.id ? 'bg-neutral-800' : 'hover:bg-neutral-900'
               }`}
-              onClick={() => { setActiveChat(chat.id); setHistory([]) }}
+              onClick={() => { setActiveChat(chat.id); setHistory([]); setSidebarOpen(false) }}
             >
               <span className="flex-1 text-[13px] text-neutral-300 truncate">{chat.title}</span>
               <button
@@ -215,20 +236,36 @@ export default function App() {
       </div>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto px-6 py-8">
-            {messages.length === 0 ? (
-              <div className="pt-16">
-                <h1 className="text-3xl font-semibold text-neutral-900 mb-2">Hai, ada yang bisa dibantu?</h1>
-                <p className="text-neutral-500 mb-10">Tanyakan apapun seputar kebijakan dan prosedur perusahaan.</p>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile header */}
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-neutral-100">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 -ml-2 text-neutral-600 hover:text-neutral-900"
+          >
+            <Menu size={22} />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-neutral-900 rounded-lg flex items-center justify-center">
+              <span className="text-sm font-bold text-white">B</span>
+            </div>
+            <span className="font-semibold text-neutral-900">Basis</span>
+          </div>
+        </div>
 
-                <div className="grid grid-cols-2 gap-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            {messages.length === 0 ? (
+              <div className="pt-8 sm:pt-16">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900 mb-2">Hai, ada yang bisa dibantu?</h1>
+                <p className="text-neutral-500 mb-8 sm:mb-10 text-sm sm:text-base">Tanyakan apapun seputar kebijakan dan prosedur perusahaan.</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {suggestions.map((s, i) => (
                     <button
                       key={i}
                       onClick={() => send(s)}
-                      className="text-left p-4 border border-neutral-200 rounded-xl text-[14px] text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50 transition-all"
+                      className="text-left p-3 sm:p-4 border border-neutral-200 rounded-xl text-[13px] sm:text-[14px] text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50 transition-all active:bg-neutral-100"
                     >
                       {s}
                     </button>
@@ -236,7 +273,7 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {messages.map((m, i) => (
                   <Message key={i} data={m} isLast={i === messages.length - 1 && !loading} />
                 ))}
@@ -247,9 +284,9 @@ export default function App() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-neutral-100 bg-white">
-          <div className="max-w-2xl mx-auto px-6 py-4">
-            <div className="flex items-end gap-3">
+        <div className="border-t border-neutral-100 bg-white safe-bottom">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+            <div className="flex items-end gap-2 sm:gap-3">
               <textarea
                 ref={inputRef}
                 value={input}
@@ -257,14 +294,14 @@ export default function App() {
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }}}
                 placeholder="Tulis pertanyaan..."
                 rows={1}
-                className="flex-1 px-4 py-3 bg-neutral-100 border-0 rounded-xl text-[15px] text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-200 resize-none"
-                style={{ minHeight: '48px', maxHeight: '150px' }}
-                onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px' }}
+                className="flex-1 px-3 sm:px-4 py-3 bg-neutral-100 border-0 rounded-xl text-[15px] text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-200 resize-none"
+                style={{ minHeight: '48px', maxHeight: '120px' }}
+                onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px' }}
               />
               <button
                 onClick={() => send()}
                 disabled={!input.trim() || loading}
-                className="w-12 h-12 bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-200 rounded-xl flex items-center justify-center transition-colors"
+                className="w-11 h-11 sm:w-12 sm:h-12 bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-200 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
               >
                 <Send size={18} className="text-white" />
               </button>
