@@ -2,6 +2,7 @@
 import os
 import sys
 import hashlib
+import httpx
 from pathlib import Path
 
 if sys.platform == 'win32':
@@ -10,7 +11,6 @@ if sys.platform == 'win32':
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
 from upstash_vector import Index
 
 load_dotenv()
@@ -18,18 +18,28 @@ load_dotenv()
 DOCS_DIR = os.getenv("DOCS_DIR", "./docs")
 UPSTASH_VECTOR_REST_URL = os.getenv("UPSTASH_VECTOR_REST_URL")
 UPSTASH_VECTOR_REST_TOKEN = os.getenv("UPSTASH_VECTOR_REST_TOKEN")
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
 
 
-def get_embeddings():
-    print(f"Loading embedding model: {EMBED_MODEL}")
-    return HuggingFaceEmbeddings(
-        model_name=EMBED_MODEL,
-        model_kwargs={'device': 'cpu'},
-        encode_kwargs={'normalize_embeddings': True}
+def get_cohere_embeddings(texts):
+    response = httpx.post(
+        "https://api.cohere.ai/v1/embed",
+        headers={
+            "Authorization": f"Bearer {COHERE_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "texts": texts,
+            "model": "embed-english-light-v3.0",
+            "input_type": "search_document",
+            "truncate": "END"
+        },
+        timeout=60
     )
+    response.raise_for_status()
+    return response.json()["embeddings"]
 
 
 def load_and_split_pdfs(docs_path):
@@ -72,26 +82,27 @@ def generate_doc_id(content, source, page):
     return f"{source}-p{page}-{content_hash}"
 
 
-def ingest_to_upstash(chunks, embeddings, index):
+def ingest_to_upstash(chunks, index):
     print(f"\nIngesting {len(chunks)} chunks to Upstash Vector...")
-    batch_size = 100
+    batch_size = 96
     total_ingested = 0
 
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i:i + batch_size]
-        vectors = []
+        texts = [chunk.page_content for chunk in batch]
 
-        for chunk in batch:
+        embeddings = get_cohere_embeddings(texts)
+
+        vectors = []
+        for j, chunk in enumerate(batch):
             content = chunk.page_content
             source = chunk.metadata.get("source", "unknown")
             page = chunk.metadata.get("page", 0)
-
-            embedding = embeddings.embed_query(content)
             doc_id = generate_doc_id(content, source, page)
 
             vectors.append({
                 "id": doc_id,
-                "vector": embedding,
+                "vector": embeddings[j],
                 "metadata": {
                     "content": content,
                     "source": source,
@@ -111,6 +122,11 @@ def main():
         print("Error: UPSTASH_VECTOR_REST_URL and UPSTASH_VECTOR_REST_TOKEN required")
         return
 
+    if not COHERE_API_KEY:
+        print("Error: COHERE_API_KEY required")
+        print("Get free API key at: https://dashboard.cohere.com/api-keys")
+        return
+
     print("Connecting to Upstash Vector...")
     index = Index(
         url=UPSTASH_VECTOR_REST_URL,
@@ -121,6 +137,12 @@ def main():
         info = index.info()
         print(f"  -> Connected! Current vectors: {info.vector_count}")
         print(f"  -> Dimension: {info.dimension}")
+
+        if info.vector_count > 0:
+            print(f"\nClearing existing {info.vector_count} vectors...")
+            index.reset()
+            print("  -> Cleared!")
+
     except Exception as e:
         print(f"Error connecting to Upstash: {e}")
         return
@@ -130,8 +152,7 @@ def main():
         print("No documents to ingest")
         return
 
-    embeddings = get_embeddings()
-    ingest_to_upstash(chunks, embeddings, index)
+    ingest_to_upstash(chunks, index)
 
     info = index.info()
     print(f"\nFinal vector count: {info.vector_count}")

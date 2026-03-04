@@ -6,21 +6,26 @@ from groq import Groq
 
 
 def get_embedding(text):
-    api_url = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
-    headers = {"Content-Type": "application/json"}
-    hf_token = os.getenv("HF_API_KEY")
-    if hf_token:
-        headers["Authorization"] = f"Bearer {hf_token}"
+    cohere_key = os.getenv("COHERE_API_KEY")
+    if not cohere_key:
+        raise ValueError("COHERE_API_KEY not configured")
 
-    response = httpx.post(api_url, headers=headers, json={"inputs": text}, timeout=30)
+    response = httpx.post(
+        "https://api.cohere.ai/v1/embed",
+        headers={
+            "Authorization": f"Bearer {cohere_key}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "texts": [text],
+            "model": "embed-english-light-v3.0",
+            "input_type": "search_query",
+            "truncate": "END"
+        },
+        timeout=30
+    )
     response.raise_for_status()
-    result = response.json()
-
-    if isinstance(result, list) and len(result) > 0:
-        if isinstance(result[0], list):
-            return result[0]
-        return result
-    return result
+    return response.json()["embeddings"][0]
 
 
 class handler(BaseHTTPRequestHandler):
