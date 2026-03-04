@@ -1,4 +1,3 @@
 httpx==0.28.1
 upstash-vector==0.6.0
-langchain-groq==0.2.4
-langchain-core>=0.3.33
+groq==0.4.2

@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import httpx
+from groq import Groq
 
 
 def get_embedding(text):
@@ -24,7 +25,6 @@ class handler(BaseHTTPRequestHandler):
             data = json.loads(body)
 
             question = data.get('question', '')
-            chat_history = data.get('chat_history', [])
 
             if not question:
                 self._send_error(400, "Question is required")
@@ -39,18 +39,10 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             from upstash_vector import Index
-            from langchain_groq import ChatGroq
 
             index = Index(
                 url=os.getenv("UPSTASH_VECTOR_REST_URL"),
                 token=os.getenv("UPSTASH_VECTOR_REST_TOKEN")
-            )
-
-            llm = ChatGroq(
-                api_key=os.getenv("GROQ_API_KEY"),
-                model_name=os.getenv("CHAT_MODEL", "llama-3.3-70b-versatile"),
-                temperature=0.1,
-                max_tokens=1000,
             )
 
             question_embedding = get_embedding(question)
@@ -104,8 +96,15 @@ PERTANYAAN: {question}
 
 JAWABAN:"""
 
-            response = llm.invoke(prompt)
-            answer = response.content
+            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+            chat_response = client.chat.completions.create(
+                model=os.getenv("CHAT_MODEL", "llama-3.3-70b-versatile"),
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=1000,
+            )
+
+            answer = chat_response.choices[0].message.content
 
             result = {
                 "answer": answer,
