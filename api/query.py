@@ -2,8 +2,6 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import httpx
-import traceback
-from groq import Groq
 
 
 def get_embedding(text):
@@ -27,6 +25,28 @@ def get_embedding(text):
     )
     response.raise_for_status()
     return response.json()["embeddings"][0]
+
+
+def call_groq(prompt):
+    groq_key = os.getenv("GROQ_API_KEY")
+    model = os.getenv("CHAT_MODEL", "llama-3.3-70b-versatile")
+
+    response = httpx.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {groq_key}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+            "max_tokens": 1000
+        },
+        timeout=60
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
 
 
 class handler(BaseHTTPRequestHandler):
@@ -73,22 +93,21 @@ class handler(BaseHTTPRequestHandler):
             sources = []
             context_parts = []
 
-            if hasattr(results, '__iter__'):
-                for result in results:
-                    metadata = getattr(result, 'metadata', None) or {}
-                    content = metadata.get('content', '')
-                    source = metadata.get('source', 'Unknown')
-                    page = metadata.get('page', 0)
-                    score = getattr(result, 'score', 0)
+            for result in results:
+                metadata = getattr(result, 'metadata', None) or {}
+                content = metadata.get('content', '')
+                source = metadata.get('source', 'Unknown')
+                page = metadata.get('page', 0)
+                score = getattr(result, 'score', 0)
 
-                    if content:
-                        context_parts.append(content)
-                        sources.append({
-                            "content": content,
-                            "source": source,
-                            "page": page,
-                            "relevance_score": score
-                        })
+                if content:
+                    context_parts.append(content)
+                    sources.append({
+                        "content": content,
+                        "source": source,
+                        "page": page,
+                        "relevance_score": score
+                    })
 
             context = "\n\n---\n\n".join(context_parts) if context_parts else "Tidak ada dokumen yang ditemukan."
 
@@ -115,15 +134,7 @@ PERTANYAAN: {question}
 
 JAWABAN:"""
 
-            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-            chat_response = client.chat.completions.create(
-                model=os.getenv("CHAT_MODEL", "llama-3.3-70b-versatile"),
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=1000,
-            )
-
-            answer = chat_response.choices[0].message.content
+            answer = call_groq(prompt)
 
             result = {
                 "answer": answer,
@@ -134,8 +145,7 @@ JAWABAN:"""
             self._send_json(200, result)
 
         except Exception as e:
-            error_detail = f"{str(e)}\n{traceback.format_exc()}"
-            self._send_error(500, error_detail)
+            self._send_error(500, f"Query failed: {str(e)}")
 
     def do_OPTIONS(self):
         self.send_response(200)
