@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import httpx
+import traceback
 from groq import Groq
 
 
@@ -49,6 +50,10 @@ class handler(BaseHTTPRequestHandler):
                 self._send_error(503, "Upstash Vector not configured")
                 return
 
+            if not os.getenv("COHERE_API_KEY"):
+                self._send_error(503, "COHERE_API_KEY not configured")
+                return
+
             from upstash_vector import Index
 
             index = Index(
@@ -68,21 +73,24 @@ class handler(BaseHTTPRequestHandler):
             sources = []
             context_parts = []
 
-            for result in results:
-                if result.metadata:
-                    content = result.metadata.get('content', '')
-                    source = result.metadata.get('source', 'Unknown')
-                    page = result.metadata.get('page', 0)
+            if hasattr(results, '__iter__'):
+                for result in results:
+                    metadata = getattr(result, 'metadata', None) or {}
+                    content = metadata.get('content', '')
+                    source = metadata.get('source', 'Unknown')
+                    page = metadata.get('page', 0)
+                    score = getattr(result, 'score', 0)
 
-                    context_parts.append(content)
-                    sources.append({
-                        "content": content,
-                        "source": source,
-                        "page": page,
-                        "relevance_score": result.score
-                    })
+                    if content:
+                        context_parts.append(content)
+                        sources.append({
+                            "content": content,
+                            "source": source,
+                            "page": page,
+                            "relevance_score": score
+                        })
 
-            context = "\n\n---\n\n".join(context_parts)
+            context = "\n\n---\n\n".join(context_parts) if context_parts else "Tidak ada dokumen yang ditemukan."
 
             prompt = f"""Anda adalah asisten knowledge base perusahaan. Jawab pertanyaan berdasarkan dokumen berikut.
 
@@ -126,7 +134,8 @@ JAWABAN:"""
             self._send_json(200, result)
 
         except Exception as e:
-            self._send_error(500, f"Query failed: {str(e)}")
+            error_detail = f"{str(e)}\n{traceback.format_exc()}"
+            self._send_error(500, error_detail)
 
     def do_OPTIONS(self):
         self.send_response(200)
