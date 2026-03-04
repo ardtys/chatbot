@@ -1,0 +1,9 @@
+backend/
+scripts/
+docs/
+*.md
+.env
+.env.example
+docker-compose.yml
+chroma_db/
+__pycache__/
