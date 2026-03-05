@@ -4,7 +4,14 @@
       "Bash(del \"C:\\\\Users\\\\Daffa\\\\OneDrive\\\\Desktop\\\\rag-system\\\\api\\\\_utils.py\")",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(pip install:*)",
+      "Bash(python local_server.py:*)",
+      "Bash(timeout:*)",
+      "Bash(curl:*)",
+      "Bash(powershell:*)",
+      "Bash(python:*)",
+      "Bash(npm run dev)"
     ]
   }
 }
